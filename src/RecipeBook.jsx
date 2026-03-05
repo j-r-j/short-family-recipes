@@ -421,10 +421,20 @@ const recipes = [
 
 const allTags = [...new Set(recipes.flatMap((r) => r.tags))].sort();
 
+function parseTimeToMinutes(timeStr) {
+  let minutes = 0;
+  const hrMatch = timeStr.match(/(\d+)\s*hr/);
+  const minMatch = timeStr.match(/(\d+)\s*min/);
+  if (hrMatch) minutes += parseInt(hrMatch[1]) * 60;
+  if (minMatch) minutes += parseInt(minMatch[1]);
+  return minutes;
+}
+
 export default function RecipeBook() {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
   const [minRating, setMinRating] = useState(0);
+  const [sortByTime, setSortByTime] = useState("none");
 
   const toggleTag = (tag) => {
     setActiveTags((prev) =>
@@ -433,7 +443,7 @@ export default function RecipeBook() {
   };
 
   const filtered = useMemo(() => {
-    return recipes.filter((r) => {
+    const result = recipes.filter((r) => {
       const matchesSearch =
         search === "" ||
         r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -444,7 +454,14 @@ export default function RecipeBook() {
       const matchesRating = minRating === 0 || (r.rating && r.rating >= minRating);
       return matchesSearch && matchesTags && matchesRating;
     });
-  }, [search, activeTags, minRating]);
+    if (sortByTime !== "none") {
+      result.sort((a, b) => {
+        const diff = parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+        return sortByTime === "asc" ? diff : -diff;
+      });
+    }
+    return result;
+  }, [search, activeTags, minRating, sortByTime]);
 
   return (
     <div style={styles.page}>
@@ -610,10 +627,10 @@ export default function RecipeBook() {
               {tag}
             </button>
           ))}
-          {(activeTags.length > 0 || minRating > 0) && (
+          {(activeTags.length > 0 || minRating > 0 || sortByTime !== "none") && (
             <button
               className="tag-btn"
-              onClick={() => { setActiveTags([]); setMinRating(0); }}
+              onClick={() => { setActiveTags([]); setMinRating(0); setSortByTime("none"); }}
               style={{ color: "#C8846B", borderColor: "#C8846B" }}
             >
               Clear all
@@ -640,6 +657,28 @@ export default function RecipeBook() {
                 />
               </svg>
               {val}+
+            </button>
+          ))}
+        </div>
+
+        {/* Sort by Cook Time */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#8A7D6B", marginRight: 4 }}>Sort by time:</span>
+          {[
+            { value: "asc", label: "Quickest first" },
+            { value: "desc", label: "Longest first" },
+          ].map(({ value, label }) => (
+            <button
+              key={value}
+              className={`tag-btn ${sortByTime === value ? "active" : ""}`}
+              onClick={() => setSortByTime(sortByTime === value ? "none" : value)}
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={sortByTime === value ? "white" : "#8A7D6B"} strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" strokeLinecap="round" />
+              </svg>
+              {label}
             </button>
           ))}
         </div>
